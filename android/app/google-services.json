@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "815573484724",
+    "project_id": "adless-yt",
+    "storage_bucket": "adless-yt.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815573484724:android:86e9f6a094a2ce4a4683e1",
+        "android_client_info": {
+          "package_name": "com.example.adless_youtube"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "815573484724-p1behfn0adt144dqc898q1rt73i8rtdv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.adless_youtube",
+            "certificate_hash": "94975d98578a06ab4fc4b020247b4685e39dd63b"
+          }
+        },
+        {
+          "client_id": "815573484724-6b341dkjtv950n03b3tl0rou93b0c4if.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBp7V_NRqm0kS2FkitmOyDBMJwetss4oEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "815573484724-6b341dkjtv950n03b3tl0rou93b0c4if.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
