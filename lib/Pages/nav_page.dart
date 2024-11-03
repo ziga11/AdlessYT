@@ -1,6 +1,7 @@
+import 'package:adless_youtube/Pages/Widgets/video_player.dart';
 import 'package:flutter/material.dart';
 import 'package:adless_youtube/Pages/channel.dart';
-import 'package:adless_youtube/Pages/downloaded.dart';
+import 'package:adless_youtube/Pages/library.dart';
 import 'package:adless_youtube/Pages/login.dart';
 import 'package:adless_youtube/Pages/search.dart';
 import 'package:adless_youtube/Utils/globals.dart';
@@ -96,6 +97,7 @@ class _NavPageState extends State<NavPage> {
                 },
               ),
             ),
+/*             YoutubeVideoPage() */
           ],
         ),
         bottomNavigationBar: Container(

@@ -1,6 +1,10 @@
 import 'dart:collection';
 
+import 'package:adless_youtube/Pages/Widgets/video_player.dart';
+import 'package:adless_youtube/Utils/video_controller.dart';
+import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:adless_youtube/Fetch/youtube_explode.dart';
 import 'package:adless_youtube/Utils/globals.dart';
@@ -81,7 +85,6 @@ class _SearchPageState extends State<SearchPage> {
     try {
       thumbnail = channel.thumbnails.nonNulls.first.url.toString();
     } catch (e) {
-      print(channel);
       return Container();
     }
 
@@ -213,78 +216,103 @@ class _SearchPageState extends State<SearchPage> {
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Container(
-        width: 0.9 * size.width,
-        height: 0.15 * size.height,
-        decoration: BoxDecoration(
-            color: YTTheme.lightGray, borderRadius: BorderRadius.circular(8)),
-        child: Row(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(thumbnail),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Text(
-                        video.duration,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: YTTheme.white,
-                        ),
-                      ),
-                    )
-                  ],
-                ),
+      child: InkWell(
+        onTap: () async {
+          try {
+            final vid = await getVideo(video.id.value);
+            if (!mounted) return;
+
+            await context
+                .read<VideoPlayerProvider>()
+                .initializeYoutubeVideo(vid);
+
+            if (!mounted) return;
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const YoutubeVideoPage(),
               ),
-            ),
-            Expanded(
+            );
+          } catch (e) {
+            if (!mounted) return;
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to load video: ${e.toString()}')),
+            );
+          }
+        },
+        child: Container(
+          width: 0.9 * size.width,
+          height: 0.15 * size.height,
+          decoration: BoxDecoration(
+              color: YTTheme.lightGray, borderRadius: BorderRadius.circular(8)),
+          child: Row(
+            children: [
+              Expanded(
                 child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                children: [
-                  Text(
-                    video.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                        color: YTTheme.white, fontWeight: FontWeight.w600),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      video.author,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.left,
-                      style: TextStyle(color: YTTheme.orange),
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Stack(
                     children: [
-                      Text(
-                        Globals.formatNumber(video.viewCount),
-                        style: TextStyle(color: YTTheme.white),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(thumbnail),
                       ),
-                      const Spacer(),
-                      Text(
-                        video.uploadDate!,
-                        style: TextStyle(color: YTTheme.white),
-                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Text(
+                          video.duration,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: YTTheme.white,
+                          ),
+                        ),
+                      )
                     ],
                   ),
-                ],
+                ),
               ),
-            ))
-          ],
+              Expanded(
+                  child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    Text(
+                      video.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                          color: YTTheme.white, fontWeight: FontWeight.w600),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        video.author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                        style: TextStyle(color: YTTheme.orange),
+                      ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Text(
+                          Globals.formatNumber(video.viewCount),
+                          style: TextStyle(color: YTTheme.white),
+                        ),
+                        const Spacer(),
+                        Text(
+                          video.uploadDate!,
+                          style: TextStyle(color: YTTheme.white),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ))
+            ],
+          ),
         ),
       ),
     );
