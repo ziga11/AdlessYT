@@ -11,11 +11,17 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class VideoPlayerProvider extends ChangeNotifier {
+  /* Is extended by LocalVideoWrapper and YoutubeVideoWrapper*/
   final ValueNotifier<BaseVideoController?> _controller = ValueNotifier(null);
+
+  /* Whether is YT or Local */
   final ValueNotifier<VideoSource?> _currentSource = ValueNotifier(null);
-  final ValueNotifier<bool> _playing = ValueNotifier(false);
+  final ValueNotifier<bool> _playing = ValueNotifier(true);
   final ValueNotifier<double> _controlOpacity = ValueNotifier(0.0);
+
+  /* Whether or not the Pause, Slider, ... controls are visible or not */
   final ValueNotifier<bool> _showControls = ValueNotifier(false);
+  final ValueNotifier<bool?> mainPage = ValueNotifier(null);
   String? _currentLocalPath;
   Video? video;
 
@@ -30,9 +36,8 @@ class VideoPlayerProvider extends ChangeNotifier {
   Future<void> initializeYoutubeVideo(Video vid) async {
     if (video?.id.value != vid.id.value ||
         _currentSource.value != VideoSource.youtube) {
-      await _dispose(); // Always dispose of the old controller
+      await _dispose();
 
-      // Create a new controller for each video
       final controller = YoutubePlayerController(
         initialVideoId: vid.id.value,
         flags: const YoutubePlayerFlags(
@@ -99,7 +104,12 @@ class VideoPlayerProvider extends ChangeNotifier {
     _controller.value = null;
     _currentLocalPath = null;
     _playing.value = false;
-    notifyListeners();
+  }
+
+  Future<void> setMainPage(bool mPage) async {
+    await Future.microtask(() {
+      mainPage.value = mPage;
+    });
   }
 
   @override

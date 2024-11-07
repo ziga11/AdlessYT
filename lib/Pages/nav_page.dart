@@ -1,4 +1,5 @@
-import 'package:adless_youtube/Pages/Widgets/video_player.dart';
+import 'package:adless_youtube/Pages/video_player.dart';
+import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:adless_youtube/Pages/channel.dart';
 import 'package:adless_youtube/Pages/library.dart';
@@ -6,6 +7,7 @@ import 'package:adless_youtube/Pages/login.dart';
 import 'package:adless_youtube/Pages/search.dart';
 import 'package:adless_youtube/Utils/globals.dart';
 import 'package:adless_youtube/Utils/theme.dart';
+import 'package:provider/provider.dart';
 
 class NavPage extends StatefulWidget {
   static const String settings = '/nav';
@@ -18,8 +20,10 @@ class _NavPageState extends State<NavPage> {
   int _selectedIndex = 0;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-  Future<void> _onItemTapped(int index) async {
+  Future<void> _onItemTapped(
+      int index, VideoPlayerProvider videoProvider) async {
     if (_selectedIndex == index) return;
+    videoProvider.setMainPage(false);
     setState(() {
       _selectedIndex = index;
     });
@@ -46,6 +50,8 @@ class _NavPageState extends State<NavPage> {
 
   @override
   Widget build(BuildContext context) {
+    var videoProvider = context.read<VideoPlayerProvider>();
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, result) async {
@@ -62,42 +68,49 @@ class _NavPageState extends State<NavPage> {
       },
       child: Scaffold(
         backgroundColor: YTTheme.darkGray,
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: Navigator(
-                key: _navigatorKey,
-                initialRoute: SearchPage.settings,
-                onGenerateRoute: (RouteSettings settings) {
-                  WidgetBuilder builder;
-                  switch (settings.name) {
-                    case SearchPage.settings:
+            Navigator(
+              key: _navigatorKey,
+              initialRoute: SearchPage.settings,
+              onGenerateRoute: (RouteSettings settings) {
+                WidgetBuilder builder;
+                switch (settings.name) {
+                  case SearchPage.settings:
+                    builder = (_) => const SearchPage();
+                    break;
+                  case Downloaded.settings:
+                    builder = (_) => const Downloaded();
+                    break;
+                  case ChannelPage.settings:
+                    if (Globals.googleUser != null) {
+                      builder = (_) => const ChannelPage();
+                    } else {
                       builder = (_) => const SearchPage();
-                      break;
-                    case Downloaded.settings:
-                      builder = (_) => const Downloaded();
-                      break;
-                    case ChannelPage.settings:
-                      if (Globals.googleUser != null) {
-                        builder = (_) => const ChannelPage();
-                      } else {
-                        builder = (_) => const SearchPage();
-                      }
-                      break;
-                    case GoogleLogin.settings:
-                      builder = (_) => const GoogleLogin();
-                      break;
-                    default:
-                      builder = (_) => const SearchPage();
-                  }
-                  return MaterialPageRoute(
-                    builder: builder,
-                    settings: settings,
-                  );
-                },
-              ),
+                    }
+                    break;
+                  case GoogleLogin.settings:
+                    builder = (_) => const GoogleLogin();
+                    break;
+                  default:
+                    builder = (_) => const SearchPage();
+                }
+                return MaterialPageRoute(
+                  builder: builder,
+                  settings: settings,
+                );
+              },
             ),
-/*             YoutubeVideoPage() */
+            Positioned(
+              bottom: 0,
+              child: ValueListenableBuilder(
+                  valueListenable: videoProvider.mainPage,
+                  builder: (context, mainPage, _) {
+                    return mainPage == null || mainPage
+                        ? const SizedBox.shrink()
+                        : const VideoPage();
+                  }),
+            ),
           ],
         ),
         bottomNavigationBar: Container(
@@ -106,7 +119,7 @@ class _NavPageState extends State<NavPage> {
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: () => _onItemTapped(0),
+                  onPressed: () => _onItemTapped(0, videoProvider),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -129,7 +142,7 @@ class _NavPageState extends State<NavPage> {
               ),
               Expanded(
                 child: TextButton(
-                  onPressed: () => _onItemTapped(1),
+                  onPressed: () => _onItemTapped(1, videoProvider),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -152,7 +165,7 @@ class _NavPageState extends State<NavPage> {
               ),
               Expanded(
                 child: TextButton(
-                  onPressed: () => _onItemTapped(2),
+                  onPressed: () => _onItemTapped(2, videoProvider),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

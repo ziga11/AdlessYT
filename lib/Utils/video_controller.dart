@@ -4,7 +4,6 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 enum Looping { no, playlist, one }
 
 class VideoController {
-  static bool videoPage = true;
   static Looping looping = Looping.playlist;
   static YoutubePlayerController? youtubeController = YoutubePlayerController(
     initialVideoId: "dQw4w9WgXcQ",
@@ -39,4 +38,3 @@ class VideoController {
 
     return controller;
   } */
-

@@ -1,3 +1,4 @@
+import 'package:adless_youtube/Pages/video_player.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:adless_youtube/Pages/channel.dart';
@@ -16,12 +17,13 @@ void main() {
           NavPage.settings: (context) => const NavPage(),
           SearchPage.settings: (context) => const SearchPage(),
           Downloaded.settings: (context) => const Downloaded(),
+          VideoPage.settings: (context) => const VideoPage(),
           ChannelPage.settings: (context) {
             if (Globals.channel != null) {
               return const ChannelPage();
             }
             return const SearchPage();
-          }
+          },
         },
         home: const NavPage(),
       )));

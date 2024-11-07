@@ -1,7 +1,7 @@
 import 'dart:collection';
+import 'dart:ui';
 
-import 'package:adless_youtube/Pages/Widgets/video_player.dart';
-import 'package:adless_youtube/Utils/video_controller.dart';
+import 'package:adless_youtube/Pages/video_player.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -222,16 +222,18 @@ class _SearchPageState extends State<SearchPage> {
             final vid = await getVideo(video.id.value);
             if (!mounted) return;
 
-            await context
-                .read<VideoPlayerProvider>()
-                .initializeYoutubeVideo(vid);
+            final videoProvider = context.read<VideoPlayerProvider>();
+
+            await videoProvider.setMainPage(true);
+            await videoProvider.initializeYoutubeVideo(vid);
 
             if (!mounted) return;
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const YoutubeVideoPage(),
+                builder: (_) => const VideoPage(),
               ),
             );
+            await videoProvider.setMainPage(false);
           } catch (e) {
             if (!mounted) return;
             if (!context.mounted) return;
@@ -303,7 +305,7 @@ class _SearchPageState extends State<SearchPage> {
                         ),
                         const Spacer(),
                         Text(
-                          video.uploadDate!,
+                          video.uploadDate ?? "",
                           style: TextStyle(color: YTTheme.white),
                         ),
                       ],
