@@ -1,7 +1,5 @@
 import 'dart:collection';
-import 'dart:ui';
 
-import 'package:adless_youtube/Pages/video_player.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -230,7 +228,7 @@ class _SearchPageState extends State<SearchPage> {
             if (!mounted) return;
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const VideoPage(),
+                builder: (_) => videoProvider.videoPage,
               ),
             );
             await videoProvider.setMainPage(false);

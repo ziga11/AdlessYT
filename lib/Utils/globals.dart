@@ -13,6 +13,7 @@ class Globals {
   static Channel? channel;
   static TextEditingController searchController = TextEditingController();
   static YoutubeExplode youtubeExplode = YoutubeExplode();
+  static GlobalKey videoKey = GlobalKey();
 
   static Size size(BuildContext context) {
     return MediaQuery.of(context).size;

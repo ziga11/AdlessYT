@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:adless_youtube/Pages/video_player.dart';
 import 'package:adless_youtube/Types/base_video_controller.dart';
 import 'package:adless_youtube/Types/local_controller.dart';
 import 'package:adless_youtube/Types/video_source.dart';
@@ -22,8 +23,12 @@ class VideoPlayerProvider extends ChangeNotifier {
   /* Whether or not the Pause, Slider, ... controls are visible or not */
   final ValueNotifier<bool> _showControls = ValueNotifier(false);
   final ValueNotifier<bool?> mainPage = ValueNotifier(null);
+
   String? _currentLocalPath;
   Video? video;
+
+  Widget? _activePlayer;
+  final VideoPage _videoPage = const VideoPage();
 
   ValueNotifier<BaseVideoController?> get controller => _controller;
   ValueNotifier<VideoSource?> get currentSource => _currentSource;
@@ -32,27 +37,33 @@ class VideoPlayerProvider extends ChangeNotifier {
   ValueNotifier<bool> get showControlsNotifier => _showControls;
   Video? get currentVideo => video;
   String? get currentLocalPath => _currentLocalPath;
+  Widget? get activePlayer => _activePlayer;
+  VideoPage get videoPage => _videoPage;
 
   Future<void> initializeYoutubeVideo(Video vid) async {
-    if (video?.id.value != vid.id.value ||
-        _currentSource.value != VideoSource.youtube) {
-      await _dispose();
+    if (video?.id.value == vid.id.value &&
+        _currentSource.value == VideoSource.youtube) return;
 
-      final controller = YoutubePlayerController(
-        initialVideoId: vid.id.value,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          hideControls: true,
-          enableCaption: true,
-          hideThumbnail: false,
-        ),
-      );
+    /*  NO NEED TO REINITALIZE THE CONTROLLER
+        iF ITS YT CONTROLLER, JUST LOAD THE NEW VIDEO */
+    await _dispose();
+    mainPage.value = true;
 
-      _controller.value = YoutubeControllerWrapper(controller);
-      video = vid;
-      _currentSource.value = VideoSource.youtube;
-      _playing.value = true;
-    }
+    final controller = YoutubePlayerController(
+      initialVideoId: vid.id.value,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        hideControls: true,
+        enableCaption: true,
+        hideThumbnail: false,
+      ),
+    );
+
+    _controller.value = YoutubeControllerWrapper(controller);
+    video = vid;
+    _currentSource.value = VideoSource.youtube;
+    await initializePlayer();
+    _playing.value = true;
   }
 
   Future<void> initializeLocalVideo(Video vid, String filePath) async {
@@ -75,7 +86,22 @@ class VideoPlayerProvider extends ChangeNotifier {
     await controller.initialize();
     _controller.value = LocalControllerWrapper(controller);
     _playing.value = true;
+    await initializePlayer();
     controller.play();
+  }
+
+  Future<void> initializePlayer() async {
+    if (currentSource.value == VideoSource.youtube) {
+      _activePlayer = YoutubePlayer(
+        controller: (controller.value as YoutubeControllerWrapper).controller,
+        key: const ValueKey('youtube_player'),
+      );
+    } else {
+      _activePlayer = VideoPlayer(
+        (controller.value as LocalControllerWrapper).controller,
+        key: const ValueKey('local_player'),
+      );
+    }
   }
 
   Future<void> togglePlayPause() async {
@@ -86,7 +112,6 @@ class VideoPlayerProvider extends ChangeNotifier {
     } else {
       await _controller.value!.play();
     }
-
     _playing.value = !_playing.value;
   }
 
@@ -103,18 +128,21 @@ class VideoPlayerProvider extends ChangeNotifier {
     await _controller.value?.dispose();
     _controller.value = null;
     _currentLocalPath = null;
+    video = null;
+    _activePlayer = null;
     _playing.value = false;
+    mainPage.value = null;
   }
 
-  Future<void> setMainPage(bool mPage) async {
+  Future<void> setMainPage(bool? mPage) async {
     await Future.microtask(() {
       mainPage.value = mPage;
     });
   }
 
   @override
-  void dispose() {
-    _dispose();
+  Future<void> dispose() async {
     super.dispose();
+    await _dispose();
   }
 }

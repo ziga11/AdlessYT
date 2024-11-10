@@ -1,4 +1,3 @@
-import 'package:adless_youtube/Pages/video_player.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:adless_youtube/Pages/channel.dart';
@@ -68,48 +67,59 @@ class _NavPageState extends State<NavPage> {
       },
       child: Scaffold(
         backgroundColor: YTTheme.darkGray,
-        body: Stack(
+        body: Column(
           children: [
-            Navigator(
-              key: _navigatorKey,
-              initialRoute: SearchPage.settings,
-              onGenerateRoute: (RouteSettings settings) {
-                WidgetBuilder builder;
-                switch (settings.name) {
-                  case SearchPage.settings:
-                    builder = (_) => const SearchPage();
-                    break;
-                  case Downloaded.settings:
-                    builder = (_) => const Downloaded();
-                    break;
-                  case ChannelPage.settings:
-                    if (Globals.googleUser != null) {
-                      builder = (_) => const ChannelPage();
-                    } else {
-                      builder = (_) => const SearchPage();
-                    }
-                    break;
-                  case GoogleLogin.settings:
-                    builder = (_) => const GoogleLogin();
-                    break;
-                  default:
-                    builder = (_) => const SearchPage();
-                }
-                return MaterialPageRoute(
-                  builder: builder,
-                  settings: settings,
-                );
-              },
-            ),
-            Positioned(
-              bottom: 0,
-              child: ValueListenableBuilder(
-                  valueListenable: videoProvider.mainPage,
-                  builder: (context, mainPage, _) {
-                    return mainPage == null || mainPage
-                        ? const SizedBox.shrink()
-                        : const VideoPage();
-                  }),
+            Expanded(
+              child: Stack(
+                children: [
+                  Navigator(
+                    key: _navigatorKey,
+                    initialRoute: SearchPage.settings,
+                    onGenerateRoute: (RouteSettings settings) {
+                      WidgetBuilder builder;
+                      switch (settings.name) {
+                        case SearchPage.settings:
+                          builder = (_) => const SearchPage();
+                          break;
+                        case Downloaded.settings:
+                          builder = (_) => const Downloaded();
+                          break;
+                        case ChannelPage.settings:
+                          if (Globals.googleUser != null) {
+                            builder = (_) => const ChannelPage();
+                          } else {
+                            builder = (_) => const SearchPage();
+                          }
+                          break;
+                        case GoogleLogin.settings:
+                          builder = (_) => const GoogleLogin();
+                          break;
+                        default:
+                          builder = (_) => const SearchPage();
+                      }
+                      return MaterialPageRoute(
+                        builder: builder,
+                        settings: settings,
+                      );
+                    },
+                  ),
+                  ValueListenableBuilder(
+                      valueListenable: videoProvider.mainPage,
+                      builder: (context, mainPage, _) {
+                        return mainPage == null
+                            ? const SizedBox.shrink()
+                            : Positioned(
+                                bottom: 0,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  child: ClipRect(
+                                    child: videoProvider.videoPage,
+                                  ),
+                                ),
+                              );
+                      })
+                ],
+              ),
             ),
           ],
         ),
