@@ -15,9 +15,12 @@ class NavPage extends StatefulWidget {
   State<NavPage> createState() => _NavPageState();
 }
 
-class _NavPageState extends State<NavPage> {
+class _NavPageState extends State<NavPage> with AutomaticKeepAliveClientMixin {
   int _selectedIndex = 0;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  bool get wantKeepAlive => true;
 
   Future<void> _onItemTapped(
       int index, VideoPlayerProvider videoProvider) async {
@@ -49,6 +52,7 @@ class _NavPageState extends State<NavPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     var videoProvider = context.read<VideoPlayerProvider>();
 
     return PopScope(
@@ -67,62 +71,65 @@ class _NavPageState extends State<NavPage> {
       },
       child: Scaffold(
         backgroundColor: YTTheme.darkGray,
-        body: Column(
-          children: [
-            Expanded(
-              child: Stack(
+        body: ValueListenableBuilder(
+            valueListenable: videoProvider.mainPage,
+            builder: (context, mainPage, _) {
+              return Stack(
                 children: [
-                  Navigator(
-                    key: _navigatorKey,
-                    initialRoute: SearchPage.settings,
-                    onGenerateRoute: (RouteSettings settings) {
-                      WidgetBuilder builder;
-                      switch (settings.name) {
-                        case SearchPage.settings:
-                          builder = (_) => const SearchPage();
-                          break;
-                        case Downloaded.settings:
-                          builder = (_) => const Downloaded();
-                          break;
-                        case ChannelPage.settings:
-                          if (Globals.googleUser != null) {
-                            builder = (_) => const ChannelPage();
-                          } else {
-                            builder = (_) => const SearchPage();
+                  Positioned.fill(
+                    child: Offstage(
+                      offstage: mainPage != null && mainPage,
+                      child: Navigator(
+                        key: _navigatorKey,
+                        initialRoute: SearchPage.settings,
+                        onGenerateRoute: (RouteSettings settings) {
+                          WidgetBuilder builder;
+                          switch (videoProvider.lastRoute ?? settings.name) {
+                            case SearchPage.settings:
+                              builder = (_) => const SearchPage();
+                              break;
+                            case Downloaded.settings:
+                              builder = (_) => const Downloaded();
+                              break;
+                            case ChannelPage.settings:
+                              builder = (_) => Globals.googleUser != null
+                                  ? const ChannelPage()
+                                  : const SearchPage();
+                              break;
+                            case GoogleLogin.settings:
+                              builder = (_) => const GoogleLogin();
+                              break;
+                            default:
+                              builder = (_) => const SearchPage();
                           }
-                          break;
-                        case GoogleLogin.settings:
-                          builder = (_) => const GoogleLogin();
-                          break;
-                        default:
-                          builder = (_) => const SearchPage();
-                      }
-                      return MaterialPageRoute(
-                        builder: builder,
-                        settings: settings,
-                      );
-                    },
+                          return MaterialPageRoute(
+                            builder: builder,
+                            settings: settings,
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                  ValueListenableBuilder(
-                      valueListenable: videoProvider.mainPage,
-                      builder: (context, mainPage, _) {
-                        return mainPage == null
-                            ? const SizedBox.shrink()
-                            : Positioned(
-                                bottom: 0,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  child: ClipRect(
-                                    child: videoProvider.videoPage,
-                                  ),
-                                ),
-                              );
-                      })
+                  if (videoProvider.mainPage.value != null)
+                    Positioned(
+                      bottom: mainPage == null || !mainPage ? 0 : null,
+                      top: mainPage == true ? 0 : null,
+                      left: 0,
+                      right: 0,
+                      height: mainPage == true
+                          ? Globals.size(context).height
+                          : Globals.size(context).height * 0.2,
+                      child: GestureDetector(
+                        onTap: () {
+                          // Expand to full video view
+                          videoProvider.mainPage.value = true;
+                        },
+                        child: videoProvider.videoPage,
+                      ),
+                    ),
                 ],
-              ),
-            ),
-          ],
-        ),
+              );
+            }),
         bottomNavigationBar: Container(
           color: YTTheme.darkGray.withOpacity(0.9),
           child: Row(

@@ -1,10 +1,10 @@
 import 'dart:async';
 
+import 'package:adless_youtube/Utils/globals.dart';
+import 'package:adless_youtube/Utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:adless_youtube/Utils/globals.dart';
-import 'package:adless_youtube/Utils/theme.dart';
 
 class GoogleLogin extends StatefulWidget {
   static const String settings = "/login";
@@ -13,111 +13,17 @@ class GoogleLogin extends StatefulWidget {
   GoogleLoginState createState() => GoogleLoginState();
 }
 
-class GoogleLoginState extends State<GoogleLogin> {
+class GoogleLoginState extends State<GoogleLogin>
+    with AutomaticKeepAliveClientMixin {
   Timer? _refreshTimer;
   final storage = const FlutterSecureStorage();
 
   @override
-  void initState() {
-    super.initState();
-    Globals.googleSignIn.onCurrentUserChanged
-        .listen((GoogleSignInAccount? account) {
-      setState(() {
-        Globals.googleUser = account;
-        if (account != null) {
-          _fetchAndStoreAccessToken();
-          _setupRefreshTimer();
-        }
-      });
-    });
-    try {
-      Globals.googleSignIn.signInSilently();
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  void _setupRefreshTimer() {
-    _refreshTimer?.cancel();
-
-    _refreshTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
-      if (Globals.googleUser != null) {
-        _refreshToken();
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  Future<void> _refreshToken() async {
-    try {
-      if (Globals.googleUser != null) {
-        final GoogleSignInAuthentication auth =
-            await Globals.googleUser!.authentication;
-        final String accessToken = auth.accessToken ?? '';
-
-        if (accessToken.isNotEmpty) {
-          await storage.write(key: "youtubeToken", value: accessToken);
-          print('Access token refreshed successfully');
-        }
-      }
-    } catch (e) {
-      print('Error refreshing token: $e');
-      try {
-        await Globals.googleSignIn.signInSilently();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Silent Sign In Failed, Log in Again")));
-        print('Silent sign-in failed: $e');
-      }
-    }
-  }
-
-  Future<void> _handleSignIn() async {
-    try {
-      final account = await Globals.googleSignIn.signIn();
-      if (account != null) {
-        await _fetchAndStoreAccessToken();
-        _setupRefreshTimer();
-      }
-    } catch (error) {
-      print('Error signing in: $error');
-    }
-  }
-
-  Future<void> _handleSignOut() async {
-    _refreshTimer?.cancel();
-    await Globals.googleSignIn.disconnect();
-    await storage.delete(key: "youtubeToken");
-    setState(() {
-      Globals.googleUser = null;
-    });
-  }
-
-  Future<void> _fetchAndStoreAccessToken() async {
-    try {
-      if (Globals.googleUser != null) {
-        final GoogleSignInAuthentication auth =
-            await Globals.googleUser!.authentication;
-        final String accessToken = auth.accessToken ?? '';
-        if (accessToken.isNotEmpty) {
-          await storage.write(key: "youtubeToken", value: accessToken);
-          print('Access token stored successfully');
-        }
-      }
-    } catch (e) {
-      print('Error fetching access token: $e');
-    }
-  }
+  bool get wantKeepAlive => throw UnimplementedError();
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: YTTheme.darkGray,
       appBar: AppBar(
@@ -157,5 +63,104 @@ class GoogleLoginState extends State<GoogleLogin> {
               ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Globals.googleSignIn.onCurrentUserChanged
+        .listen((GoogleSignInAccount? account) {
+      setState(() {
+        Globals.googleUser = account;
+        if (account != null) {
+          _fetchAndStoreAccessToken();
+          _setupRefreshTimer();
+        }
+      });
+    });
+    try {
+      Globals.googleSignIn.signInSilently();
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> _fetchAndStoreAccessToken() async {
+    try {
+      if (Globals.googleUser != null) {
+        final GoogleSignInAuthentication auth =
+            await Globals.googleUser!.authentication;
+        final String accessToken = auth.accessToken ?? '';
+        if (accessToken.isNotEmpty) {
+          await storage.write(key: "youtubeToken", value: accessToken);
+          print('Access token stored successfully');
+        }
+      }
+    } catch (e) {
+      print('Error fetching access token: $e');
+    }
+  }
+
+  Future<void> _handleSignIn() async {
+    try {
+      final account = await Globals.googleSignIn.signIn();
+      if (account != null) {
+        await _fetchAndStoreAccessToken();
+        _setupRefreshTimer();
+      }
+    } catch (error) {
+      print('Error signing in: $error');
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    _refreshTimer?.cancel();
+    await Globals.googleSignIn.disconnect();
+    await storage.delete(key: "youtubeToken");
+    setState(() {
+      Globals.googleUser = null;
+    });
+  }
+
+  Future<void> _refreshToken() async {
+    try {
+      if (Globals.googleUser != null) {
+        final GoogleSignInAuthentication auth =
+            await Globals.googleUser!.authentication;
+        final String accessToken = auth.accessToken ?? '';
+
+        if (accessToken.isNotEmpty) {
+          await storage.write(key: "youtubeToken", value: accessToken);
+          print('Access token refreshed successfully');
+        }
+      }
+    } catch (e) {
+      print('Error refreshing token: $e');
+      try {
+        await Globals.googleSignIn.signInSilently();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Silent Sign In Failed, Log in Again")));
+        print('Silent sign-in failed: $e');
+      }
+    }
+  }
+
+  void _setupRefreshTimer() {
+    _refreshTimer?.cancel();
+
+    _refreshTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+      if (Globals.googleUser != null) {
+        _refreshToken();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 }

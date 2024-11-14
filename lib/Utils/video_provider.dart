@@ -11,7 +11,17 @@ import 'package:video_player/video_player.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
+enum Looping {
+  none,
+  playlist,
+  one,
+}
+
 class VideoPlayerProvider extends ChangeNotifier {
+  String? lastRoute;
+  Map<String, dynamic>? lastRouteArgs;
+  Function()? getLastRouteArgs;
+
   /* Is extended by LocalVideoWrapper and YoutubeVideoWrapper*/
   final ValueNotifier<BaseVideoController?> _controller = ValueNotifier(null);
 
@@ -24,8 +34,10 @@ class VideoPlayerProvider extends ChangeNotifier {
   final ValueNotifier<bool> _showControls = ValueNotifier(false);
   final ValueNotifier<bool?> mainPage = ValueNotifier(null);
 
-  String? _currentLocalPath;
-  Video? video;
+  Looping looping = Looping.playlist;
+  List<String> _currentLocalPaths = [];
+  int index = 0;
+  List<Video> videos = [];
 
   Widget? _activePlayer;
   final VideoPage _videoPage = const VideoPage();
@@ -35,59 +47,55 @@ class VideoPlayerProvider extends ChangeNotifier {
   ValueNotifier<bool> get playing => _playing;
   ValueNotifier<double> get controlOpacityNotifier => _controlOpacity;
   ValueNotifier<bool> get showControlsNotifier => _showControls;
-  Video? get currentVideo => video;
-  String? get currentLocalPath => _currentLocalPath;
+  Video? get currentVideo => videos[index];
+  String? get currentLocalPath => _currentLocalPaths[index];
   Widget? get activePlayer => _activePlayer;
   VideoPage get videoPage => _videoPage;
 
-  Future<void> initializeYoutubeVideo(Video vid) async {
-    if (video?.id.value == vid.id.value &&
-        _currentSource.value == VideoSource.youtube) return;
+  Future<void> initializeYoutubeVideo(List<Video> vids) async {
+    if (videos == vids && _currentSource.value == VideoSource.youtube ||
+        _activePlayer != null) return;
 
     /*  NO NEED TO REINITALIZE THE CONTROLLER
         iF ITS YT CONTROLLER, JUST LOAD THE NEW VIDEO */
     await _dispose();
-    mainPage.value = true;
 
     final controller = YoutubePlayerController(
-      initialVideoId: vid.id.value,
+      initialVideoId: vids[index].id.value,
       flags: const YoutubePlayerFlags(
-        autoPlay: true,
+        autoPlay: false,
         hideControls: true,
-        enableCaption: true,
-        hideThumbnail: false,
       ),
     );
 
     _controller.value = YoutubeControllerWrapper(controller);
-    video = vid;
+    videos = vids;
     _currentSource.value = VideoSource.youtube;
     await initializePlayer();
-    _playing.value = true;
+    mainPage.value = true;
   }
 
-  Future<void> initializeLocalVideo(Video vid, String filePath) async {
-    if (_currentLocalPath == filePath &&
+  Future<void> initializeLocalVideo(
+      List<Video> vids, List<String> filePaths) async {
+    if (_currentLocalPaths == filePaths &&
         _currentSource.value == VideoSource.local) {
       return;
     }
 
     await _dispose();
 
-    _currentLocalPath = filePath;
+    _currentLocalPaths = filePaths;
     _currentSource.value = VideoSource.local;
 
-    video = vid;
+    videos = vids;
 
     final controller = VideoPlayerController.file(
-      File(filePath),
+      File(filePaths[index]),
     );
 
     await controller.initialize();
     _controller.value = LocalControllerWrapper(controller);
-    _playing.value = true;
     await initializePlayer();
-    controller.play();
   }
 
   Future<void> initializePlayer() async {
@@ -125,10 +133,12 @@ class VideoPlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _dispose() async {
-    await _controller.value?.dispose();
-    _controller.value = null;
-    _currentLocalPath = null;
-    video = null;
+    if (_controller.value != null) {
+      await _controller.value?.dispose();
+      _controller.value = null;
+    }
+    _currentLocalPaths = [];
+    videos.clear();
     _activePlayer = null;
     _playing.value = false;
     mainPage.value = null;
@@ -138,6 +148,10 @@ class VideoPlayerProvider extends ChangeNotifier {
     await Future.microtask(() {
       mainPage.value = mPage;
     });
+  }
+
+  Future<void> disposeVideo() async {
+    await _dispose();
   }
 
   @override

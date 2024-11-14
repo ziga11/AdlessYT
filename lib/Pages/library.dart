@@ -8,12 +8,16 @@ class Downloaded extends StatefulWidget {
   State<Downloaded> createState() => _DownloadedState();
 }
 
-class _DownloadedState extends State<Downloaded> {
+class _DownloadedState extends State<Downloaded>
+    with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Column(
       children: [],
     );
   }
-}
 
+  @override
+  bool get wantKeepAlive => true;
+}

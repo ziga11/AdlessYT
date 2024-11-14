@@ -1,30 +1,35 @@
+import 'package:adless_youtube/Fetch/youtube_api.dart';
 import 'package:adless_youtube/Fetch/youtube_explode.dart';
 import 'package:adless_youtube/Pages/playlist_tile.dart';
 import 'package:adless_youtube/Pages/video_tile.dart';
-import 'package:flutter/material.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-import 'package:adless_youtube/Fetch/youtube_api.dart';
 import 'package:adless_youtube/Utils/globals.dart';
 import 'package:adless_youtube/Utils/theme.dart';
+import 'package:adless_youtube/Utils/video_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class ChannelPage extends StatefulWidget {
   static const String settings = "/channel";
+
   const ChannelPage({super.key});
 
   @override
   State<ChannelPage> createState() => _ChannelPageState();
 }
 
-class _ChannelPageState extends State<ChannelPage> {
+class _ChannelPageState extends State<ChannelPage>
+    with AutomaticKeepAliveClientMixin {
   final ScrollController videoScrollController = ScrollController();
   final ScrollController playlistScrollController = ScrollController();
   final ScrollController shortsScrollController = ScrollController();
+  late final VideoPlayerProvider videoProvider;
   final YoutubeFetch youtubeFetch = YoutubeFetch();
   int _currentPageIndex = 0;
   Channel? channel;
-  final List<Video> videos = [];
-  final List<Video> shorts = [];
-  final List<Playlist> playlists = [];
+  List<Video> videos = [];
+  List<Video> shorts = [];
+  List<Playlist> playlists = [];
   ChannelUploadsList? currVideoBatch;
   ChannelUploadsList? currShortsBatch;
   Map<String, bool> fetchedAll = {
@@ -33,178 +38,8 @@ class _ChannelPageState extends State<ChannelPage> {
     "shorts": false
   };
 
-  Future<void> nextVideoBatch() async {
-    try {
-      if (fetchedAll["videos"] == true) return;
-      ChannelUploadsList? newVideoBatch =
-          await getChannelVideos(channel!, uploadList: currVideoBatch);
-      if (newVideoBatch == null) {
-        fetchedAll["videos"] = true;
-        return;
-      }
-      currVideoBatch = newVideoBatch;
-      if (mounted) {
-        setState(() {
-          videos.addAll(currVideoBatch as List<Video>);
-        });
-      }
-    } catch (e) {
-      fetchedAll["videos"] = true;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load videos: ${e.toString()}')),
-        );
-      }
-      print(e);
-    }
-  }
-
-  Future<void> nextPlaylistBatch() async {
-    try {
-      if (fetchedAll["playlists"] == true) return;
-      List<Playlist> playlistBatch = (await youtubeFetch.fetchChannelPlaylists(
-              channel!.id.value,
-              prefix: playlists.length,
-              batchSize: 50))
-          .toList();
-      if (playlistBatch.length < 50 || playlistBatch.isEmpty) {
-        fetchedAll["playlists"] = true;
-      }
-      if (mounted) {
-        setState(() {
-          playlists.addAll(playlistBatch);
-        });
-      }
-    } catch (e) {
-      fetchedAll["playlists"] = true;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load playlists: ${e.toString()}')),
-        );
-      }
-      print(e);
-    }
-  }
-
-  Future<void> nextShortsBatch() async {
-    try {
-      if (fetchedAll["shorts"] == true) return;
-      ChannelUploadsList? newShortsBatch =
-          await getChannelShorts(channel!, uploadList: currShortsBatch);
-      if (newShortsBatch == null) {
-        fetchedAll["shorts"] = true;
-        return;
-      }
-      currShortsBatch = newShortsBatch;
-      if (mounted) {
-        setState(() {
-          shorts.addAll(currShortsBatch as List<Video>);
-        });
-      }
-    } catch (e) {
-      fetchedAll["shorts"] = true;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load shorts : ${e.toString()}')),
-        );
-      }
-      print(e);
-    }
-  }
-
-  void _switchPage(int index) {
-    if (_currentPageIndex == index) return;
-
-    switch (index) {
-      case 0:
-        if (videos.isEmpty) {
-          nextVideoBatch();
-        }
-        break;
-      case 1:
-        if (shorts.isEmpty) {
-          nextShortsBatch();
-        }
-        break;
-      case 2:
-        if (playlists.isEmpty) {
-          nextPlaylistBatch();
-        }
-        break;
-      default:
-    }
-
-    setState(() {
-      _currentPageIndex = index;
-    });
-  }
-
-  Future<void> _handleSignOut() async {
-    await Globals.googleSignIn.disconnect();
-    setState(() {
-      Globals.googleUser = null;
-    });
-  }
-
   @override
-  void initState() {
-    super.initState();
-    _setupScrollControllers();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Map<String, dynamic>? args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final String? channelId = args != null ? args["channelId"] : null;
-
-    return Scaffold(
-      backgroundColor: YTTheme.darkGray,
-      appBar: AppBar(
-        backgroundColor: YTTheme.lightGray,
-        leading: const BackButton(
-          color: Colors.white,
-        ),
-        actions: [
-          if (channelId == null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                onPressed: _handleSignOut,
-                icon: Icon(
-                  Icons.logout,
-                  color: YTTheme.white,
-                ),
-              ),
-            )
-        ],
-      ),
-      body: FutureBuilder(
-        future: channelId != null
-            ? getChannel(channelId)
-            : youtubeFetch.fetchMyYouTubeChannel(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Error occurred ${snapshot.error}"));
-          } else if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text("No data found"));
-          }
-
-          if (channel == null) {
-            channel = snapshot.data!;
-            if (channel == null) {
-              return const Text("No Channel Provided");
-            }
-            nextVideoBatch();
-          }
-
-          return bodyUI(channel!);
-        },
-      ),
-    );
-  }
+  bool get wantKeepAlive => true;
 
   Widget bodyUI(Channel channel) {
     return Container(
@@ -335,24 +170,39 @@ class _ChannelPageState extends State<ChannelPage> {
                   items: videos,
                   type: "videos",
                   onLoadMore: nextVideoBatch,
-                  itemBuilder: (context, index) =>
-                      VideoListTile(video: videos[index]),
+                  itemBuilder: (context, index) => VideoListTile(
+                      video: videos[index],
+                      onTap: () async {
+                        await videoProvider
+                            .initializeYoutubeVideo([videos[index]]);
+                      }),
                 ),
                 _buildLazyScrollView(
                   controller: shortsScrollController,
                   items: shorts,
                   type: "shorts",
                   onLoadMore: nextShortsBatch,
-                  itemBuilder: (context, index) =>
-                      VideoListTile(video: shorts[index]),
+                  itemBuilder: (context, index) => VideoListTile(
+                      video: shorts[index],
+                      onTap: () async {
+                        await videoProvider
+                            .initializeYoutubeVideo([shorts[index]]);
+                      }),
                 ),
                 _buildLazyScrollView(
                   controller: playlistScrollController,
                   items: playlists,
                   type: "playlists",
                   onLoadMore: nextPlaylistBatch,
-                  itemBuilder: (context, index) =>
-                      PlaylistListTile(playlist: playlists[index]),
+                  itemBuilder: (context, index) => PlaylistListTile(
+                    playlist: playlists[index],
+                    onTap: () async {
+                      await videoProvider.initializeYoutubeVideo(
+                        await (await getPlaylistVideos(playlists[index]))
+                            .toList(),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -362,6 +212,167 @@ class _ChannelPageState extends State<ChannelPage> {
         ],
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final Map<String, dynamic>? args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final String? channelId = args != null ? args["channelId"] : null;
+
+    return Scaffold(
+      backgroundColor: YTTheme.darkGray,
+      appBar: AppBar(
+        backgroundColor: YTTheme.lightGray,
+        leading: const BackButton(
+          color: Colors.white,
+        ),
+        actions: [
+          if (channelId == null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: _handleSignOut,
+                icon: Icon(
+                  Icons.logout,
+                  color: YTTheme.white,
+                ),
+              ),
+            )
+        ],
+      ),
+      body: FutureBuilder(
+        future: channelId != null
+            ? getChannel(channelId)
+            : youtubeFetch.fetchMyYouTubeChannel(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error occurred ${snapshot.error}"));
+          } else if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text("No data found"));
+          }
+
+          if (channel == null) {
+            channel = snapshot.data!;
+            if (channel == null) {
+              return const Text("No Channel Provided");
+            }
+            nextVideoBatch();
+          }
+
+          return bodyUI(channel!);
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    videoScrollController.dispose();
+    playlistScrollController.dispose();
+    shortsScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _setupScrollControllers();
+    videoProvider = context.read<VideoPlayerProvider>();
+    videoProvider.getLastRouteArgs = () {
+      videoProvider.lastRoute = ChannelPage.settings;
+      videoProvider.lastRouteArgs = {
+        "fetchedAll": fetchedAll,
+        "videos": videos,
+        "shorts": shorts,
+        "playlists": playlists,
+        "videosControllerPos": videoScrollController.position.pixels,
+        "shortsControllerPos": shortsScrollController.position.pixels,
+        "playlistsControllerPos": playlistScrollController.position.pixels
+      };
+    };
+  }
+
+  Future<void> nextPlaylistBatch() async {
+    try {
+      if (fetchedAll["playlists"] == true) return;
+      List<Playlist> playlistBatch = (await youtubeFetch.fetchChannelPlaylists(
+              channel!.id.value,
+              prefix: playlists.length,
+              batchSize: 50))
+          .toList();
+      if (playlistBatch.length < 50 || playlistBatch.isEmpty) {
+        fetchedAll["playlists"] = true;
+      }
+      if (mounted) {
+        setState(() {
+          playlists.addAll(playlistBatch);
+        });
+      }
+    } catch (e) {
+      fetchedAll["playlists"] = true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load playlists: ${e.toString()}')),
+        );
+      }
+      print(e);
+    }
+  }
+
+  Future<void> nextShortsBatch() async {
+    try {
+      if (fetchedAll["shorts"] == true) return;
+      ChannelUploadsList? newShortsBatch =
+          await getChannelShorts(channel!, uploadList: currShortsBatch);
+      if (newShortsBatch == null) {
+        fetchedAll["shorts"] = true;
+        return;
+      }
+      currShortsBatch = newShortsBatch;
+      if (mounted) {
+        setState(() {
+          shorts.addAll(currShortsBatch as List<Video>);
+        });
+      }
+    } catch (e) {
+      fetchedAll["shorts"] = true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load shorts : ${e.toString()}')),
+        );
+      }
+      print(e);
+    }
+  }
+
+  Future<void> nextVideoBatch() async {
+    try {
+      if (fetchedAll["videos"] == true) return;
+      ChannelUploadsList? newVideoBatch =
+          await getChannelVideos(channel!, uploadList: currVideoBatch);
+      if (newVideoBatch == null) {
+        fetchedAll["videos"] = true;
+        return;
+      }
+      currVideoBatch = newVideoBatch;
+      if (mounted) {
+        setState(() {
+          videos.addAll(currVideoBatch as List<Video>);
+        });
+      }
+    } catch (e) {
+      fetchedAll["videos"] = true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load videos: ${e.toString()}')),
+        );
+      }
+      print(e);
+    }
   }
 
   Widget _buildLazyScrollView({
@@ -398,7 +409,6 @@ class _ChannelPageState extends State<ChannelPage> {
                 return itemBuilder(context, index);
               },
               childCount: fetchedAll[type]! ? items.length : items.length + 1,
-              /* fetchedAll[type] == true ? items.length : items.length + 1, */
             ),
           );
         }),
@@ -417,6 +427,13 @@ class _ChannelPageState extends State<ChannelPage> {
       default:
         return 0;
     }
+  }
+
+  Future<void> _handleSignOut() async {
+    await Globals.googleSignIn.disconnect();
+    setState(() {
+      Globals.googleUser = null;
+    });
   }
 
   void _setupScrollControllers() {
@@ -439,10 +456,30 @@ class _ChannelPageState extends State<ChannelPage> {
     setupController(playlistScrollController, "playlists", nextPlaylistBatch);
   }
 
-  @override
-  void dispose() {
-    videoScrollController.dispose();
-    playlistScrollController.dispose();
-    super.dispose();
+  void _switchPage(int index) {
+    if (_currentPageIndex == index) return;
+
+    switch (index) {
+      case 0:
+        if (videos.isEmpty) {
+          nextVideoBatch();
+        }
+        break;
+      case 1:
+        if (shorts.isEmpty) {
+          nextShortsBatch();
+        }
+        break;
+      case 2:
+        if (playlists.isEmpty) {
+          nextPlaylistBatch();
+        }
+        break;
+      default:
+    }
+
+    setState(() {
+      _currentPageIndex = index;
+    });
   }
 }

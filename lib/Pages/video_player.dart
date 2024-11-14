@@ -7,10 +7,8 @@ import 'package:adless_youtube/Types/video_source.dart';
 import 'package:adless_youtube/Types/youtube_controller.dart';
 import 'package:adless_youtube/Utils/globals.dart';
 import 'package:adless_youtube/Utils/theme.dart';
-import 'package:adless_youtube/Utils/video_controller.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 class VideoPage extends StatefulWidget {
@@ -93,9 +91,9 @@ class VideoPageState extends State<VideoPage>
       return IconButton(
           onPressed: () async {
             if (videoProvider.playing.value) {
-              videoProvider.togglePlayPause();
+              await videoProvider.togglePlayPause();
             }
-            await videoProvider.dispose();
+            await videoProvider.disposeVideo();
           },
           icon: Icon(
             Icons.close_sharp,
@@ -114,7 +112,7 @@ class VideoPageState extends State<VideoPage>
                   valueListenable: videoProvider.controlOpacityNotifier,
                   builder: (context, opacity, _) {
                     return Text(
-                      videoProvider.video!.title,
+                      videoProvider.currentVideo!.title,
                       style:
                           TextStyle(color: YTTheme.white.withOpacity(opacity)),
                     );
@@ -376,11 +374,8 @@ class VideoPageState extends State<VideoPage>
                                             videoProvider
                                                 .updateControlsVisibility(
                                                     true, 1.0);
-                                            VideoController.youtubeController!
-                                                .seekTo(
-                                              Duration(
-                                                  milliseconds: value.toInt()),
-                                            );
+                                            videoProvider.seekTo(Duration(
+                                                milliseconds: value.toInt()));
                                           },
                                           min: 0,
                                           max: value
@@ -404,93 +399,81 @@ class VideoPageState extends State<VideoPage>
           });
     }
 
-    return Scaffold(
-      backgroundColor: YTTheme.darkGray,
-      appBar: vertical
-          ? AppBar(
-              backgroundColor: YTTheme.darkGray,
-              leading: IconButton(
-                onPressed: () {
-                  videoProvider.setMainPage(false);
-                },
-                icon: Icon(
-                  Icons.arrow_back_rounded,
-                  color: YTTheme.white,
+    return ValueListenableBuilder(
+        valueListenable: videoProvider.mainPage,
+        builder: (context, mainPage, _) {
+          void onControllerReady() {
+            if ((controller as YoutubeControllerWrapper)
+                .controller
+                .value
+                .isReady) {
+              (controller as YoutubeControllerWrapper).controller.play();
+              (controller as YoutubeControllerWrapper)
+                  .controller
+                  .removeListener(onControllerReady);
+            }
+          }
+
+          (controller as YoutubeControllerWrapper)
+              .controller
+              .addListener(onControllerReady);
+          return Scaffold(
+            backgroundColor: YTTheme.darkGray,
+            appBar: vertical && mainPage!
+                ? AppBar(
+                    backgroundColor: YTTheme.darkGray,
+                    leading: IconButton(
+                      onPressed: () {
+                        videoProvider.setMainPage(false);
+                      },
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        color: YTTheme.white,
+                      ),
+                    ),
+                  )
+                : null,
+            body: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: GestureDetector(
+                              onTap: () {
+                                if (videoProvider.mainPage.value!) {
+                                  showControls();
+                                } else {
+                                  videoProvider.setMainPage(true);
+                                  if (videoProvider.getLastRouteArgs != null) {
+                                    videoProvider.getLastRouteArgs!();
+                                  }
+                                }
+                              },
+                              child: videoProvider.activePlayer,
+                            ),
+                          ),
+                          mainPage!
+                              ? const SizedBox.shrink()
+                              : Expanded(child: miniPlayPause()),
+                          mainPage
+                              ? const SizedBox.shrink()
+                              : Expanded(child: closeButton()),
+                        ],
+                      ),
+                      mainPage ? title() : const SizedBox.shrink(),
+                      mainPage ? mainControls() : const SizedBox.shrink(),
+                      mainPage ? playbackSpeed() : const SizedBox.shrink(),
+                      mainPage ? durationSlider() : const SizedBox.shrink(),
+                    ],
+                  ),
                 ),
-              ),
-            )
-          : null,
-      body: SafeArea(
-        child: LayoutBuilder(builder: (context, constraints) {
-          return SizedBox(
-            width: constraints.maxWidth,
-            height: constraints.maxHeight,
-            child: ValueListenableBuilder(
-                valueListenable: videoProvider.currentSource,
-                builder: (context, src, _) {
-                  return ValueListenableBuilder(
-                      valueListenable: videoProvider.controller,
-                      builder: (context, cntrler, _) {
-                        source = src;
-                        if (src == VideoSource.youtube) {
-                          controller = (cntrler as YoutubeControllerWrapper);
-                        } else if (src == VideoSource.local) {
-                          controller = (cntrler as LocalControllerWrapper);
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                        return ValueListenableBuilder(
-                            valueListenable: videoProvider.mainPage,
-                            builder: (context, mainPage, _) {
-                              return Column(
-                                children: [
-                                  Expanded(
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 3,
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  if (mainPage!) {
-                                                    showControls();
-                                                  } else {
-                                                    videoProvider
-                                                        .setMainPage(true);
-                                                  }
-                                                },
-                                                child:
-                                                    videoProvider.activePlayer,
-                                              ),
-                                            ),
-                                            if (!mainPage!)
-                                              Expanded(
-                                                child: miniPlayPause(),
-                                              ),
-                                            if (!mainPage)
-                                              Expanded(
-                                                child: closeButton(),
-                                              )
-                                          ],
-                                        ),
-                                        if (mainPage) title(),
-                                        if (mainPage) mainControls(),
-                                        if (mainPage) playbackSpeed(),
-                                        if (mainPage) durationSlider(),
-                                      ],
-                                    ),
-                                  ),
-                                  /* TODO Playlist ... */
-                                ],
-                              );
-                            });
-                      });
-                }),
+              ],
+            ),
           );
-        }),
-      ),
-    );
+        });
   }
 }

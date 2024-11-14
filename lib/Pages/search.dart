@@ -1,27 +1,40 @@
 import 'dart:collection';
 
+import 'package:adless_youtube/Fetch/youtube_explode.dart';
+import 'package:adless_youtube/Utils/globals.dart';
+import 'package:adless_youtube/Utils/theme.dart';
 import 'package:adless_youtube/Utils/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-import 'package:adless_youtube/Fetch/youtube_explode.dart';
-import 'package:adless_youtube/Utils/globals.dart';
-import 'package:adless_youtube/Utils/theme.dart';
 
 class SearchPage extends StatefulWidget {
   static const String settings = "/search";
+
   const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage>
+    with AutomaticKeepAliveClientMixin {
   SearchList? searchList;
   final HashMap<String, Video> videoMemoization = HashMap();
+  ScrollController scrollController = ScrollController();
+  late final VideoPlayerProvider videoProvider;
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    videoProvider = context.read<VideoPlayerProvider>();
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     Size size = MediaQuery.of(context).size;
     return Column(
       children: [
@@ -60,6 +73,7 @@ class _SearchPageState extends State<SearchPage> {
         if (searchList != null)
           Expanded(
             child: ListView.builder(
+              controller: scrollController,
               itemBuilder: (context, index) {
                 final entity = searchList![index];
                 if (entity is SearchVideo) {
@@ -190,8 +204,7 @@ class _SearchPageState extends State<SearchPage> {
                       return const Center(child: Text('Error loading video'));
                     }
                     if (!videoSnapshot.hasData) {
-                      return const Center(
-                          child: Text('No video data available'));
+                      return const SizedBox.shrink();
                     }
 
                     video = videoSnapshot.data!;
@@ -220,18 +233,9 @@ class _SearchPageState extends State<SearchPage> {
             final vid = await getVideo(video.id.value);
             if (!mounted) return;
 
-            final videoProvider = context.read<VideoPlayerProvider>();
+            videoProvider.getLastRouteArgs!();
 
-            await videoProvider.setMainPage(true);
-            await videoProvider.initializeYoutubeVideo(vid);
-
-            if (!mounted) return;
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => videoProvider.videoPage,
-              ),
-            );
-            await videoProvider.setMainPage(false);
+            await videoProvider.initializeYoutubeVideo([vid]);
           } catch (e) {
             if (!mounted) return;
             if (!context.mounted) return;

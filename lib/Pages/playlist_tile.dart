@@ -15,7 +15,6 @@ class PlaylistListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("aaaaaa");
     return ListTile(
       leading: SizedBox(
         width: Globals.size(context).width / 3,
