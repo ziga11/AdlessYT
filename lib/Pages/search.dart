@@ -233,8 +233,7 @@ class _SearchPageState extends State<SearchPage>
             final vid = await getVideo(video.id.value);
             if (!mounted) return;
 
-            videoProvider.getLastRouteArgs!();
-
+            print([vid]);
             await videoProvider.initializeYoutubeVideo([vid]);
           } catch (e) {
             if (!mounted) return;
@@ -322,3 +321,4 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 }
+

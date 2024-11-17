@@ -39,8 +39,6 @@ class VideoPageState extends State<VideoPage>
   void initState() {
     super.initState();
     videoProvider = context.read<VideoPlayerProvider>();
-    source = videoProvider.currentSource.value;
-    controller = videoProvider.controller.value;
   }
 
   @override
@@ -93,7 +91,7 @@ class VideoPageState extends State<VideoPage>
             if (videoProvider.playing.value) {
               await videoProvider.togglePlayPause();
             }
-            await videoProvider.disposeVideo();
+            await videoProvider.disposeWithoutProvider();
           },
           icon: Icon(
             Icons.close_sharp,
@@ -400,80 +398,289 @@ class VideoPageState extends State<VideoPage>
     }
 
     return ValueListenableBuilder(
-        valueListenable: videoProvider.mainPage,
-        builder: (context, mainPage, _) {
+        valueListenable: videoProvider.controller,
+        builder: (context, cntrler, _) {
           void onControllerReady() {
-            if ((controller as YoutubeControllerWrapper)
+            if ((cntrler as YoutubeControllerWrapper)
                 .controller
                 .value
                 .isReady) {
-              (controller as YoutubeControllerWrapper).controller.play();
-              (controller as YoutubeControllerWrapper)
-                  .controller
-                  .removeListener(onControllerReady);
+              (cntrler).controller.play();
+              (cntrler).controller.removeListener(onControllerReady);
             }
           }
 
-          (controller as YoutubeControllerWrapper)
-              .controller
-              .addListener(onControllerReady);
-          return Scaffold(
-            backgroundColor: YTTheme.darkGray,
-            appBar: vertical && mainPage!
-                ? AppBar(
-                    backgroundColor: YTTheme.darkGray,
-                    leading: IconButton(
-                      onPressed: () {
-                        videoProvider.setMainPage(false);
-                      },
-                      icon: Icon(
-                        Icons.arrow_back_rounded,
-                        color: YTTheme.white,
-                      ),
-                    ),
-                  )
-                : null,
-            body: Column(
-              children: [
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: GestureDetector(
-                              onTap: () {
-                                if (videoProvider.mainPage.value!) {
-                                  showControls();
-                                } else {
-                                  videoProvider.setMainPage(true);
-                                  if (videoProvider.getLastRouteArgs != null) {
-                                    videoProvider.getLastRouteArgs!();
-                                  }
-                                }
-                              },
-                              child: videoProvider.activePlayer,
+          if (controller != null) {
+            controller?.dispose().then((_) {
+              controller = cntrler;
+              (cntrler as YoutubeControllerWrapper)
+                  .controller
+                  .addListener(onControllerReady);
+            });
+          } else {
+            controller = cntrler;
+
+            (cntrler as YoutubeControllerWrapper)
+                .controller
+                .addListener(onControllerReady);
+          }
+          return ValueListenableBuilder(
+              valueListenable: videoProvider.currentSource,
+              builder: (context, src, _) {
+                source = src;
+                return ValueListenableBuilder(
+                    valueListenable: videoProvider.mainPage,
+                    builder: (context, mainPage, _) {
+                      double videoHeight =
+                          Globals.size(context).width / (16 / 9);
+
+                      return Scaffold(
+                        backgroundColor: YTTheme.darkGray,
+                        appBar: vertical && mainPage!
+                            ? AppBar(
+                                backgroundColor: YTTheme.darkGray,
+                                leading: IconButton(
+                                  onPressed: () {
+                                    videoProvider.setMainPage(false);
+                                  },
+                                  icon: Icon(
+                                    Icons.arrow_back_rounded,
+                                    color: YTTheme.white,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        body: Column(
+                          children: [
+                            SizedBox(
+                              height: mainPage!
+                                  ? videoHeight
+                                  : Globals.size(context).height * 0.2,
+                              width: Globals.size(context).width,
+                              child: Stack(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            if (videoProvider.mainPage.value!) {
+                                              showControls();
+                                            } else {
+                                              videoProvider.setMainPage(true);
+                                              if (videoProvider
+                                                      .getLastRouteArgs !=
+                                                  null) {
+                                                videoProvider
+                                                    .getLastRouteArgs!();
+                                              }
+                                            }
+                                          },
+                                          child: videoProvider.activePlayer,
+                                        ),
+                                      ),
+                                      mainPage
+                                          ? const SizedBox.shrink()
+                                          : Expanded(child: miniPlayPause()),
+                                      mainPage
+                                          ? const SizedBox.shrink()
+                                          : Expanded(child: closeButton()),
+                                    ],
+                                  ),
+                                  mainPage ? title() : const SizedBox.shrink(),
+                                  mainPage
+                                      ? mainControls()
+                                      : const SizedBox.shrink(),
+                                  mainPage
+                                      ? playbackSpeed()
+                                      : const SizedBox.shrink(),
+                                  mainPage
+                                      ? durationSlider()
+                                      : const SizedBox.shrink(),
+                                ],
+                              ),
                             ),
-                          ),
-                          mainPage!
-                              ? const SizedBox.shrink()
-                              : Expanded(child: miniPlayPause()),
-                          mainPage
-                              ? const SizedBox.shrink()
-                              : Expanded(child: closeButton()),
-                        ],
-                      ),
-                      mainPage ? title() : const SizedBox.shrink(),
-                      mainPage ? mainControls() : const SizedBox.shrink(),
-                      mainPage ? playbackSpeed() : const SizedBox.shrink(),
-                      mainPage ? durationSlider() : const SizedBox.shrink(),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
+                            if (vertical && mainPage)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Text(
+                                          videoProvider.currentVideo!.title,
+                                          style: TextStyle(
+                                              color: YTTheme.white,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: 12, bottom: 10),
+                                        child: SizedBox(
+                                          width: Globals.size(context).width,
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                videoProvider
+                                                    .currentVideo!.author,
+                                                style: TextStyle(
+                                                    color: YTTheme.orange,
+                                                    fontWeight:
+                                                        FontWeight.w600),
+                                              ),
+                                              const Spacer(),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 8),
+                                                child: Text(
+                                                  Globals.formatDateWeekDay(
+                                                      videoProvider.currentVideo
+                                                          ?.uploadDate),
+                                                  style: TextStyle(
+                                                      color: YTTheme.lightGray),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        color:
+                                            YTTheme.darkGray.withOpacity(0.7),
+                                        child: RichText(
+                                          text: TextSpan(children: [
+                                            TextSpan(
+                                              text: "DESCRIPTION",
+                                              style: TextStyle(
+                                                color: YTTheme.white
+                                                    .withOpacity(0.7),
+                                              ),
+                                            ),
+                                          ]),
+                                        ),
+                                      ),
+                                      // TODO: ADD IF > 1 VIDEJOV
+                                      Column(
+                                        children: [
+                                          Expanded(
+                                            child: ReorderableListView(
+                                                children: [
+                                                  for (int ind = 0;
+                                                      ind <
+                                                          videoProvider
+                                                              .videos.length;
+                                                      ind++)
+                                                    ListTile(
+                                                      key: ValueKey(
+                                                          videoProvider
+                                                              .videos[ind]),
+                                                      tileColor: videoProvider
+                                                                  .index
+                                                                  .value ==
+                                                              ind
+                                                          ? YTTheme.orange
+                                                          : YTTheme.lightGray,
+                                                      leading: Image.network(
+                                                        videoProvider
+                                                            .videos[ind]
+                                                            .thumbnails
+                                                            .mediumResUrl,
+                                                        width: Globals.size(
+                                                                    context)
+                                                                .width *
+                                                            0.2,
+                                                        height: Globals.size(
+                                                                    context)
+                                                                .height *
+                                                            0.2,
+                                                      ),
+                                                      title: Text(
+                                                        videoProvider
+                                                            .videos[ind].title,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          color: YTTheme.white,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                        maxLines: 2,
+                                                      ),
+                                                      subtitle: Row(
+                                                        children: [
+                                                          Text(
+                                                            videoProvider
+                                                                .videos[ind]
+                                                                .author,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style: TextStyle(
+                                                                color: YTTheme
+                                                                    .white
+                                                                    .withOpacity(
+                                                                        0.8),
+                                                                fontStyle:
+                                                                    FontStyle
+                                                                        .italic,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500),
+                                                          ),
+                                                          const Spacer(),
+                                                          Text(
+                                                            Globals.formatDateWeekDay(
+                                                                videoProvider
+                                                                    .videos[ind]
+                                                                    .uploadDate),
+                                                            style: TextStyle(
+                                                                color: YTTheme
+                                                                    .white
+                                                                    .withOpacity(
+                                                                        0.7)),
+                                                          )
+                                                        ],
+                                                      ),
+                                                      onTap: () async {
+                                                        await videoProvider
+                                                            .switchToVideo(ind);
+                                                      },
+                                                    ),
+                                                ],
+                                                onReorder: (int oldIndex,
+                                                    int newIndex) {
+                                                  if (newIndex > oldIndex) {
+                                                    newIndex -= 1;
+                                                  }
+                                                  if (oldIndex ==
+                                                      videoProvider
+                                                          .index.value) {
+                                                    videoProvider.index.value =
+                                                        newIndex;
+                                                  }
+                                                  final video = videoProvider
+                                                      .videos
+                                                      .removeAt(oldIndex);
+                                                  videoProvider.videos
+                                                      .insert(newIndex, video);
+                                                }),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    });
+              });
         });
   }
 }

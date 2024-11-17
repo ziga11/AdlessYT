@@ -34,9 +34,10 @@ class VideoPlayerProvider extends ChangeNotifier {
   final ValueNotifier<bool> _showControls = ValueNotifier(false);
   final ValueNotifier<bool?> mainPage = ValueNotifier(null);
 
+  final ValueNotifier<int> index = ValueNotifier(0);
+
   Looping looping = Looping.playlist;
   List<String> _currentLocalPaths = [];
-  int index = 0;
   List<Video> videos = [];
 
   Widget? _activePlayer;
@@ -47,32 +48,64 @@ class VideoPlayerProvider extends ChangeNotifier {
   ValueNotifier<bool> get playing => _playing;
   ValueNotifier<double> get controlOpacityNotifier => _controlOpacity;
   ValueNotifier<bool> get showControlsNotifier => _showControls;
-  Video? get currentVideo => videos[index];
-  String? get currentLocalPath => _currentLocalPaths[index];
+  Video? get currentVideo => videos[index.value];
+  String? get currentLocalPath => _currentLocalPaths[index.value];
   Widget? get activePlayer => _activePlayer;
   VideoPage get videoPage => _videoPage;
 
   Future<void> initializeYoutubeVideo(List<Video> vids) async {
-    if (videos == vids && _currentSource.value == VideoSource.youtube ||
-        _activePlayer != null) return;
+    if (videos == vids && _currentSource.value == VideoSource.youtube) return;
 
+    index.value = 0;
     /*  NO NEED TO REINITALIZE THE CONTROLLER
         iF ITS YT CONTROLLER, JUST LOAD THE NEW VIDEO */
-    await _dispose();
+    if (mainPage.value != null) {
+      videos = vids;
+      (_controller.value as YoutubeControllerWrapper)
+          .controller
+          .load(vids[index.value].id.value);
+    } else {
+      await _dispose();
 
-    final controller = YoutubePlayerController(
-      initialVideoId: vids[index].id.value,
-      flags: const YoutubePlayerFlags(
-        autoPlay: false,
-        hideControls: true,
-      ),
-    );
+      final controller = YoutubePlayerController(
+        initialVideoId: vids[index.value].id.value,
+        flags: const YoutubePlayerFlags(
+          autoPlay: false,
+          hideControls: true,
+        ),
+      );
 
-    _controller.value = YoutubeControllerWrapper(controller);
-    videos = vids;
-    _currentSource.value = VideoSource.youtube;
-    await initializePlayer();
-    mainPage.value = true;
+      controller.addListener(() {
+        if (controller.value.position != vids[index.value].duration) return;
+        switch (looping) {
+          case Looping.one:
+            controller.seekTo(const Duration(seconds: 0));
+            break;
+          case Looping.playlist:
+            index.value = (index.value + 1) % vids.length;
+            controller.load(vids[index.value].id.value);
+            break;
+          case Looping.none:
+            index.value++;
+            if (index.value == vids.length) return;
+            controller.load(vids[index.value].id.value);
+            break;
+        }
+      });
+
+      _controller.value = YoutubeControllerWrapper(controller);
+      videos = vids;
+      _currentSource.value = VideoSource.youtube;
+      await initializePlayer();
+      mainPage.value = true;
+    }
+  }
+
+  Future<void> switchToVideo(int ind) async {
+    if (index.value == ind || videos.length <= ind) return;
+    (_controller.value as YoutubeControllerWrapper)
+        .controller
+        .load(videos[ind].id.value);
   }
 
   Future<void> initializeLocalVideo(
@@ -90,12 +123,13 @@ class VideoPlayerProvider extends ChangeNotifier {
     videos = vids;
 
     final controller = VideoPlayerController.file(
-      File(filePaths[index]),
+      File(filePaths[index.value]),
     );
 
     await controller.initialize();
     _controller.value = LocalControllerWrapper(controller);
     await initializePlayer();
+    mainPage.value = true;
   }
 
   Future<void> initializePlayer() async {
@@ -150,7 +184,7 @@ class VideoPlayerProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> disposeVideo() async {
+  Future<void> disposeWithoutProvider() async {
     await _dispose();
   }
 
